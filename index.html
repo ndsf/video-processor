@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.8.0/dist/ffmpeg.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<h3>Upload a video to transcode to mp4 (x264) and play!</h3>
+<img id="output-image"/>
+<p id="output-type">type</p>
+<video id="output-video" controls></video>
+<br/>
+<input type="file" id="uploader">
+<p id="message"></p>
+<script>
+    const {createFFmpeg} = FFmpeg;
+    const ffmpeg = createFFmpeg({corePath: "./ffmpeg-core.js", log: true});
+
+
+    const transcode = async ({target: {files}}) => {
+        const message = document.getElementById('message');
+        message.innerHTML = 'Loading ffmpeg-core.js & MobileNet';
+
+        await ffmpeg.load();
+
+        const {name} = files[0];
+
+        message.innerHTML = 'Start transcoding';
+        await ffmpeg.write(name, files[0]);
+        await ffmpeg.run(`-y -i ${name} -ss 00:00:00 -vframes 1 output.jpeg`);
+
+        await ffmpeg.write('logo.png', './logo.png');
+        await ffmpeg.write('Roboto-Regular.ttf', './Roboto-Regular.ttf');
+        await ffmpeg.run(`-i ${name} -i logo.png -filter_complex overlay=5:5 output.mp4`);
+
+        message.innerHTML = 'Complete transcoding';
+
+        const imageData = await ffmpeg.read('output.jpeg');
+        const image = document.getElementById('output-image');
+        image.src = URL.createObjectURL(new Blob([imageData.buffer], {type: 'image/jepg'}));
+
+        const videoData = await ffmpeg.read('output.mp4');
+        const video = document.getElementById('output-video');
+        video.src = URL.createObjectURL(new Blob([videoData.buffer], { type: 'video/mp4' }));
+
+        let net = await mobilenet.load();
+        // Make a prediction through the model on our image.
+        const imgEl = document.getElementById('output-image');
+        const result = await net.classify(imgEl);
+        console.log(result);
+        let tags = "";
+        result.forEach(item => tags = tags + `${item['className']}: ${item['probability']}; `);
+
+        const typeLabel = document.getElementById('output-type');
+        typeLabel.innerHTML = tags;
+    }
+
+    const elm = document.getElementById('uploader');
+    elm.addEventListener('change', transcode);
+</script>
+</body>
+</html>
