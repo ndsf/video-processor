@@ -11,5 +11,6 @@
     <orderEntry type="library" name="@tensorflow" level="application" />
     <orderEntry type="library" name="@ffmpeg/ffmpeg" level="application" />
     <orderEntry type="library" name="@tensorflow-models" level="application" />
+    <orderEntry type="library" name="@tensorflow/tfjs" level="application" />
   </component>
 </module>
