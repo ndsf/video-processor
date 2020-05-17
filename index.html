@@ -5,7 +5,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>WebAssembly Video Compression</title>
 </head>
 <body>
 <h3>Upload a video to play!</h3>
@@ -17,6 +17,18 @@
 <a id="downloadLink">Download</a>
 <p id="message"></p>
 <script>
+    function formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 Bytes';
+
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
     const {createFFmpeg} = FFmpeg;
     const ffmpeg = createFFmpeg({corePath: "./ffmpeg-core.js", log: true});
 
@@ -32,9 +44,12 @@
         await ffmpeg.write('video.mp4', files[0]);
         await ffmpeg.run(`-y -i video.mp4 -ss 00:00:00 -vframes 1 frame.jpeg`);
 
-        message.innerHTML = 'Compressing the video';
-        await ffmpeg.run('-y -i video.mp4 -crf 32 -threads 7 output.mp4');
+        const t0 = performance.now();
 
+        message.innerHTML = 'Compressing the video';
+        await ffmpeg.run('-y -i video.mp4 -c:v libx264 -c:a copy -crf 32 -threads 4 -preset ultrafast output.mp4');
+
+        const t1 = performance.now();
         ffmpeg.remove("video.mp4");
 
         // message.innerHTML = 'Adding logo to the video';
@@ -42,7 +57,6 @@
         // await ffmpeg.run(`-y -i video.mp4 -i logo.png -filter_complex overlay=5:5 temp.mp4`);
         // await ffmpeg.run(`-y -i video.mp4 -i logo.png -filter_complex [0:v][1:v]overlay=10:10:enable=\'between(t,0,1)\' output.mp4`);
 
-        message.innerHTML = 'Complete transcoding';
 
         const imageData = await ffmpeg.read('frame.jpeg');
         const image = document.getElementById('output-image');
@@ -50,7 +64,8 @@
 
         const videoData = await ffmpeg.read('output.mp4');
         const video = document.getElementById('output-video');
-        const videoUrl = URL.createObjectURL(new Blob([videoData.buffer], {type: 'video/mp4'}));
+        const videoBlob = new Blob([videoData.buffer], {type: 'video/mp4'});
+        const videoUrl = URL.createObjectURL(videoBlob);
         console.log(videoUrl);
         video.src = videoUrl;
 
@@ -58,6 +73,9 @@
         const link = document.getElementById('downloadLink');
         link.href = videoUrl;
         link.download = `${new Date().valueOf()}.mp4`;
+        link.innerHTML = `Download(${formatBytes(videoBlob.size)})`;
+        message.innerHTML = `Compression complete, takes ${((t1 - t0) / 1000).toFixed(2)} seconds, file size reduced from ${formatBytes(files[0].size)} to ${formatBytes(videoBlob.size)}`;
+
 
         let net = await mobilenet.load();
         const result = await net.classify(image);
