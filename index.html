@@ -33,7 +33,9 @@
         await ffmpeg.run(`-y -i video.mp4 -ss 00:00:00 -vframes 1 frame.jpeg`);
 
         message.innerHTML = 'Compressing the video';
-        await ffmpeg.run('-y -i video.mp4 -crf 32 output.mp4');
+        await ffmpeg.run('-y -i video.mp4 -crf 32 -threads 7 output.mp4');
+
+        ffmpeg.remove("video.mp4");
 
         // message.innerHTML = 'Adding logo to the video';
         // await ffmpeg.write('logo.png', './logo.png');
@@ -60,7 +62,7 @@
         let net = await mobilenet.load();
         const result = await net.classify(image);
         console.log(result);
-        let tags = "";
+        let tags = "Classify result: ";
         result.forEach(item => tags = tags + `${item['className']}: ${item['probability']}; `);
 
         const typeLabel = document.getElementById('output-type');
